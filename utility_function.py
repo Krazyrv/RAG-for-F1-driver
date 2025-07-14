@@ -1,11 +1,12 @@
 from bs4 import BeautifulSoup as bs
 import requests
+from selenium import webdriver
 import os
 import pandas as pd
 from urllib.parse import urljoin
 
 BASE_URL = "https://www.formula1.com"
-DRIVER_URL = "en/drivers"
+DRIVER_HREF = "en/drivers"
 
 def get_soup(url):
     """
@@ -13,6 +14,7 @@ def get_soup(url):
     """
     response = requests.get(url)
     return bs(response.text, "html.parser")
+
 
 def get_driver_slug(driver_html, only_name=False):
     """This function get driver slug from a list of driver
@@ -54,7 +56,7 @@ def get_drivers_url(soup_all_driver_page):
         # print(get_driver_slug(driver_html,only_name = True))
         driver_slug = get_driver_slug(driver_html,only_name = True)
         # driver_soup = get_soup(url_join(driver_url,driver_slug))
-        driver_url = url_join(BASE_URL, DRIVER_URL)
+        driver_url = url_join(BASE_URL, DRIVER_HREF)
         driver_url_list.append(url_join(driver_url,driver_slug))
     return driver_url_list
 
@@ -138,15 +140,16 @@ def get_article_url(page_soup):
     url_list = []
     date_list = []
     try:
-        articles_soup = page_soup.main.div.contents[1].div.div.contents[1].ul.find_all("li")#.contents
+        # articles_soup = page_soup.main.div.contents[1].div.div.contents[1].ul.find_all("li")#.contents
+        articles_soup = page_soup.main.div.contents[1].div.div.contents[1].ul.contents
 
         for ar in articles_soup:
             url_list.append(url_join(BASE_URL, ar.a['href']))
-            print("ARRRR: ",ar)
     except Exception as e:
         print(f"Skipping article extraction due to error: {e}")
         pass
     return url_list
+
 
 
 # def get_article_url(page_soup):
@@ -172,8 +175,6 @@ def get_article_content(article_soup):
     header = article_soup.main.div.contents[0].div.div.find('div',class_ = "flex flex-col gap-px-16 lg:gap-px-24 justify-between md:max-w-content-fixed-md lg:max-w-content-fixed-lg")
     title = header.h1.text
     overview = header.find("div", class_ = "flex flex-col gap-rem-12 md:gap-rem-16 lg:gap-rem-24").p.text
-    # date = header.find("span", class_ = "typography-module_body-xs-regular__0B0St colors-module_colour-text-text-3__cQJVX").find("time").text
-    # print("Date: ",date)
     content = ""
     content_soup = article_soup.main.div.contents[1].div.find_all("p")
     # print("LEN ", len(content_soup))
@@ -217,10 +218,10 @@ def scrape_driver_news(driver_soup, driver_slug):
     for url in url_list:
         article_list, arr_url = scrape_articles(url)
         for (title, overview, content), url in zip(article_list,arr_url):
-            driver_news = {"title": title, "url": url, "driver_slug": driver_slug, "name": get_driver_name_from_slug(driver_slug), "overview":overview, "content": content}
+            driver_news = {"article_title": title, "url": url, "related_driver_name": get_driver_name_from_slug(driver_slug), "driver_slug": driver_slug, "overview":overview, "content": content}
+            print(f"SUCESSFUL - Scrape article: '{title}'\nFrom: {url}")
             driver_news_list.append(driver_news)
-        # title, overview, content = scrape_articles(url_list[0])
-        # print("AAA",content)
+        # print("content",content)
     return driver_news_list
 
 def scrape_driver_data(driver_soup,driver_slug = "Driver"):
